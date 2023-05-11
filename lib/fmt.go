@@ -7,7 +7,7 @@ import (
 	"github.com/dop251/goja_nodejs/require"
 )
 
-func init() {
+func InitFmt() {
 	require.RegisterNativeModule("std/fmt", func(runtime *js.Runtime, module *js.Object) {
 		o := module.Get("exports").(*js.Object)
 		o.Set("sprintf", func(call js.FunctionCall) js.Value {

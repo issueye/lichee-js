@@ -6,7 +6,8 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/require"
-	"github.com/issueye/lichee/pkg/plugins/core/lib"
+	lichee_redis "github.com/issueye/lichee-js/db/redis"
+	"github.com/issueye/lichee-js/lib"
 	redis "github.com/redis/go-redis/v9"
 )
 
@@ -15,8 +16,6 @@ import (
 func RegisterRedis(moduleName string, rdb *redis.Client) {
 	require.RegisterNativeModule(moduleName, func(runtime *goja.Runtime, module *goja.Object) {
 		o := module.Get("exports").(*goja.Object)
-		// key
-
 		// 删除键
 		o.Set("del", func(call goja.FunctionCall) goja.Value {
 			key := call.Argument(0).String()
@@ -304,5 +303,9 @@ func RegisterRedis(moduleName string, rdb *redis.Client) {
 			}
 			return lib.MakeReturnValue(runtime, b)
 		})
+
+		lichee_redis.String(runtime, o, rdb) // string
+		lichee_redis.Hash(runtime, o, rdb)   // hash
+		lichee_redis.List(runtime, o, rdb)   // list
 	})
 }

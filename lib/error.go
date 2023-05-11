@@ -18,7 +18,7 @@ func NewError(runtime *js.Runtime, err error) *js.Object {
 	return o
 }
 
-func init() {
+func InitError() {
 	require.RegisterNativeModule("error", func(runtime *js.Runtime, module *js.Object) {
 		o := module.Get("exports").(*js.Object)
 		o.Set("new", func(call js.FunctionCall) js.Value {

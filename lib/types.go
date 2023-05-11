@@ -8,7 +8,7 @@ import (
 	"github.com/dop251/goja_nodejs/require"
 )
 
-func init() {
+func InitTypes() {
 	require.RegisterNativeModule("std/types", func(runtime *js.Runtime, module *js.Object) {
 		o := module.Get("exports").(*js.Object)
 

@@ -9,7 +9,7 @@ import (
 	"golang.org/x/text/encoding/simplifiedchinese"
 )
 
-func init() {
+func InitCmd() {
 	require.RegisterNativeModule("std/os/exec", func(runtime *js.Runtime, module *js.Object) {
 		o := module.Get("exports").(*js.Object)
 		o.Set("command", func(name string, args ...string) js.Value {

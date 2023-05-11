@@ -13,7 +13,7 @@ var (
 
 type CallBackFunc = func(js.FunctionCall) js.Value
 
-func init() {
+func InitBolt() {
 	require.RegisterNativeModule("db/bolt", func(runtime *js.Runtime, module *js.Object) {
 		o := module.Get("exports").(*js.Object)
 

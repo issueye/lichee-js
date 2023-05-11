@@ -7,7 +7,7 @@ import (
 	"github.com/dop251/goja_nodejs/require"
 )
 
-func init() {
+func InitSyscall() {
 	require.RegisterNativeModule("std/syscall", func(runtime *js.Runtime, module *js.Object) {
 		o := module.Get("exports").(*js.Object)
 		o.Set("SIGHUP", syscall.SIGHUP)

@@ -8,7 +8,7 @@ import (
 	"github.com/issueye/lichee-js/lib"
 )
 
-func init() {
+func InitFilepath() {
 	require.RegisterNativeModule("std/path/filepath", func(runtime *js.Runtime, module *js.Object) {
 		o := module.Get("exports").(*js.Object)
 		o.Set("abs", func(call js.FunctionCall) js.Value {

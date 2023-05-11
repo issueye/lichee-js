@@ -23,7 +23,7 @@ func GetNowDateTime(runtime *js.Runtime, formatStr string) js.Value {
 	return runtime.ToValue(str)
 }
 
-func init() {
+func InitTime() {
 	require.RegisterNativeModule("std/time", func(runtime *js.Runtime, module *js.Object) {
 		o := module.Get("exports").(*js.Object)
 		// 睡眠

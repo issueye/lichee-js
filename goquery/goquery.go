@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/cast"
 )
 
-func init() {
+func InitGoQuery() {
 	require.RegisterNativeModule("go/query", func(runtime *js.Runtime, module *js.Object) {
 		o := module.Get("exports").(*js.Object)
 		o.Set("do", func(call js.FunctionCall) js.Value {

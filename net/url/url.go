@@ -51,7 +51,7 @@ func NewURL(runtime *goja.Runtime, u *url.URL) *goja.Object {
 	return o
 }
 
-func init() {
+func InitUrl() {
 	require.RegisterNativeModule("url", func(runtime *goja.Runtime, module *goja.Object) {
 		o := module.Get("exports").(*goja.Object)
 		o.Set("parse", func(call goja.FunctionCall) goja.Value {

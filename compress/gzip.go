@@ -12,7 +12,7 @@ import (
 	"github.com/issueye/lichee-js/lib"
 )
 
-func init() {
+func InitGzip() {
 	require.RegisterNativeModule("std/compress/gzip", func(runtime *goja.Runtime, module *goja.Object) {
 		o := module.Get("exports").(*goja.Object)
 		// writer

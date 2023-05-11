@@ -62,7 +62,7 @@ func MakeErrorValue(runtime *js.Runtime, err error) js.Value {
 	})
 }
 
-func init() {
+func InitUtils() {
 	require.RegisterNativeModule("std/utils", func(runtime *js.Runtime, module *js.Object) {
 		o := module.Get("exports").(*js.Object)
 		o.Set("print", func(call js.FunctionCall) js.Value {

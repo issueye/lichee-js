@@ -15,7 +15,7 @@ type ElemData struct {
 	Data any
 }
 
-func init() {
+func InitList() {
 	require.RegisterNativeModule("std/container/list", func(runtime *goja.Runtime, module *goja.Object) {
 		o := module.Get("exports").(*goja.Object)
 		// writer

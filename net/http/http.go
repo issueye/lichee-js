@@ -10,7 +10,7 @@ import (
 	"github.com/dop251/goja_nodejs/require"
 )
 
-func init() {
+func InitHttp() {
 	require.RegisterNativeModule("http", func(runtime *goja.Runtime, module *goja.Object) {
 		o := module.Get("exports").(*goja.Object)
 		o.Set("request", func(call goja.FunctionCall) goja.Value {
