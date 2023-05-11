@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"time"
 
 	js "github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/require"
@@ -214,7 +213,7 @@ func (c *Core) run(path string, vm *js.Runtime) error {
 		c.Errorf("读取文件失败，失败原因：%s", err.Error())
 	} else {
 		// 编译文件
-		pro, err := js.Compile(fmt.Sprintf("script_%s", time.Now().Format("20060102150405999")), string(src), false)
+		pro, err := js.Compile(fmt.Sprintf("script_%s", c.name), string(src), false)
 		if err != nil {
 			c.Errorf("编译代码失败，失败原因：%s", err.Error())
 		} else {

@@ -15,26 +15,6 @@ func init() {
 		o.Set("command", func(name string, args ...string) js.Value {
 			cmd := exec.Command(name, args...)
 			return NewCmd(runtime, cmd)
-
-			// var (
-			// 	stdout bytes.Buffer
-			// 	stderr bytes.Buffer
-			// )
-			// cmd.Stdout = &stdout
-			// cmd.Stderr = &stderr
-			// err := cmd.Run()
-			// if err != nil {
-			// 	fmt.Println("运行错误 ", err.Error())
-			// 	return MakeErrorValue(runtime, fmt.Errorf("cmd.Run() failed with %s", err.Error()))
-			// }
-
-			// outStr := ConvertByte2String(stdout.Bytes(), "GB18030")
-			// errStr := ConvertByte2String(stderr.Bytes(), "GB18030")
-			// if errStr != "" {
-			// 	return MakeErrorValue(runtime, fmt.Errorf("stderr %s", errStr))
-			// }
-
-			// return MakeReturnValue(runtime, outStr)
 		})
 	})
 }
