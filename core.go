@@ -7,14 +7,8 @@ import (
 	"path/filepath"
 	"sync"
 
-	js "github.com/dop251/goja"
+	goja "github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/require"
-	_ "github.com/issueye/lichee-js/boltdb"
-	_ "github.com/issueye/lichee-js/db"
-	_ "github.com/issueye/lichee-js/goquery"
-	_ "github.com/issueye/lichee-js/net/http"
-	_ "github.com/issueye/lichee-js/net/url"
-	_ "github.com/issueye/lichee-js/path"
 	"go.uber.org/zap"
 )
 
@@ -26,8 +20,8 @@ const (
 )
 
 var (
-	globalConvertProg *js.Program                   // convert 转换代码的对应编译对象
-	globalDayjsProg   *js.Program                   // dayjs 转换代码的对应编译对象
+	globalConvertProg *goja.Program                 // convert 转换代码的对应编译对象
+	globalDayjsProg   *goja.Program                 // dayjs 转换代码的对应编译对象
 	LogMap            = make(map[string]*ZapLogger) // 日志对象
 )
 
@@ -36,21 +30,21 @@ type ZapLogger struct {
 	Close func()
 }
 
-type ModuleFunc = func(vm *js.Runtime, module *js.Object)
+type ModuleFunc = func(vm *goja.Runtime, module *goja.Object)
 
 // Core
-// js运行时核心的结构体
+// goja运行时核心的结构体
 type Core struct {
-	// 全局js加载目录
+	// 全局goja加载目录
 	globalPath string
 	// 外部添加到内部的内容
 	pkg map[string]map[string]any
 	// 外部注册的模块
 	modules map[string]ModuleFunc
 	// 编译之后的对象
-	// pro *js.Program
+	// pro *goja.Program
 	// 对应文件的编译对象
-	proMap map[string]*js.Program
+	proMap map[string]*goja.Program
 	// 日志对象
 	logger *zap.Logger
 	// 锁
@@ -59,6 +53,8 @@ type Core struct {
 	name string
 	// 日志存放路径
 	logPath string
+	// vm 虚拟机
+	vm *goja.Runtime
 }
 
 type OptFunc = func(*Core)
@@ -67,12 +63,13 @@ type OptFunc = func(*Core)
 // 创建一个对象
 func NewCore(opts ...OptFunc) *Core {
 	c := new(Core)
+	c.GetRts()
 	c.lock = new(sync.Mutex)
 	c.pkg = make(map[string]map[string]any)
 	// 初始化全局
 	c.pkg[GoPlugins] = make(map[string]any)
-	c.modules = make(map[string]func(vm *js.Runtime, module *js.Object))
-	c.proMap = make(map[string]*js.Program)
+	c.modules = make(map[string]func(vm *goja.Runtime, module *goja.Object))
+	c.proMap = make(map[string]*goja.Program)
 	// 配置
 	for _, opt := range opts {
 		opt(c)
@@ -90,35 +87,35 @@ func OptionLog(path string, log *zap.Logger) OptFunc {
 	}
 }
 
-func (c *Core) setupJSRuntime(rt *js.Runtime, logger *zap.Logger) error {
+func (c *Core) setupGojaRuntime(logger *zap.Logger) error {
 	// 输出日志
 	console := newConsole(logger)
-	o := rt.NewObject()
+	o := c.vm.NewObject()
 	o.Set("log", console.Log)
 	o.Set("debug", console.Debug)
 	o.Set("info", console.Info)
 	o.Set("error", console.Error)
 	o.Set("warn", console.Warn)
 
-	err := rt.Set("console", o)
+	err := c.vm.Set("console", o)
 	if err != nil {
 		return err
 	}
 
-	// 加载js模块
-	c.loadScript(rt, "utils-arr2map", "convert.js", globalConvertProg)
-	c.loadScript(rt, "dayjs", "dayjs.min.js", globalDayjsProg)
+	// 加载goja模块
+	c.loadScript("utils-arr2map", "convert.js", globalConvertProg)
+	c.loadScript("dayjs", "dayjs.min.js", globalDayjsProg)
 
 	return nil
 }
 
-func (c *Core) LoadModule(vm *js.Runtime) {
+func (c *Core) loadModule() {
 	// 添加 导入方法 require
 	registry := require.NewRegistry(
 		// 全局加载路径
 		require.WithGlobalFolders(c.globalPath),
 	)
-	registry.Enable(vm)
+	registry.Enable(c.vm)
 
 	// 添加 日志方法 console
 	if c.name == "" {
@@ -143,10 +140,10 @@ func (c *Core) LoadModule(vm *js.Runtime) {
 	}
 
 	// 设置运行时
-	c.setupJSRuntime(vm, log.log)
+	c.setupGojaRuntime(log.log)
 
 	// 加载全局对象
-	c.loadVariable(vm)
+	c.loadVariable()
 
 	// 加载外部模块
 	c.registerModule()
@@ -154,8 +151,12 @@ func (c *Core) LoadModule(vm *js.Runtime) {
 
 // GetRts
 // 获取运行时
-func (c *Core) GetRts() *js.Runtime {
-	return js.New()
+func (c *Core) GetRts() *goja.Runtime {
+	if c.vm == nil {
+		c.vm = goja.New()
+	}
+
+	return c.vm
 }
 
 func (c *Core) SetGlobalPath(path string) {
@@ -163,22 +164,22 @@ func (c *Core) SetGlobalPath(path string) {
 }
 
 // loadScript
-// 加载文件中的js脚本
-func (c *Core) loadScript(vm *js.Runtime, name string, jsName string, p *js.Program) {
+// 加载文件中的goja脚本
+func (c *Core) loadScript(name string, gojaName string, p *goja.Program) {
 	if p == nil {
-		path := fmt.Sprintf("js/%s", jsName)
+		path := fmt.Sprintf("js/%s", gojaName)
 		src, err := Script.ReadFile(path)
 		if err != nil {
 			c.Errorf("读取文件失败，失败原因：%s", err.Error())
 			return
 		}
-		p, err = js.Compile(name, string(src), false)
+		p, err = goja.Compile(name, string(src), false)
 		if err != nil {
 			return
 		}
 	}
 	// 运行脚本
-	_, err := vm.RunProgram(p)
+	_, err := c.vm.RunProgram(p)
 	if err != nil {
 		c.Errorf("运行脚本[%s]失败，失败原因：%s", name, err.Error())
 	}
@@ -187,19 +188,18 @@ func (c *Core) loadScript(vm *js.Runtime, name string, jsName string, p *js.Prog
 // Run
 // 运行脚本 文件
 func (c *Core) Run(name, path string) error {
-	vm := c.GetRts()
 	c.name = name
-	return c.run(path, vm)
+	return c.run(path, c.vm)
 }
 
 // RunVM
 // 运行脚本 文件
-func (c *Core) RunVM(path string, vm *js.Runtime) error {
+func (c *Core) RunVM(path string, vm *goja.Runtime) error {
 	return c.run(path, vm)
 }
 
-func (c *Core) run(path string, vm *js.Runtime) error {
-	c.LoadModule(vm)
+func (c *Core) run(path string, vm *goja.Runtime) error {
+	c.loadModule()
 	var tmpPath string
 	if c.globalPath != "" {
 		tmpPath = filepath.Join(c.globalPath, path)
@@ -213,7 +213,7 @@ func (c *Core) run(path string, vm *js.Runtime) error {
 		c.Errorf("读取文件失败，失败原因：%s", err.Error())
 	} else {
 		// 编译文件
-		pro, err := js.Compile(fmt.Sprintf("script_%s", c.name), string(src), false)
+		pro, err := goja.Compile(fmt.Sprintf("script_%s", c.name), string(src), false)
 		if err != nil {
 			c.Errorf("编译代码失败，失败原因：%s", err.Error())
 		} else {
@@ -221,11 +221,16 @@ func (c *Core) run(path string, vm *js.Runtime) error {
 		}
 	}
 
+	runVm := c.vm
+	if vm != nil {
+		runVm = vm
+	}
+
 	// 只有存在编译对象时，才运行
 	if c.proMap[path] != nil {
-		_, err := vm.RunProgram(c.proMap[path])
-		if jsErr, ok := err.(*js.Exception); ok {
-			return fmt.Errorf("运行脚本失败，失败原因：%s", jsErr.Error())
+		_, err := runVm.RunProgram(c.proMap[path])
+		if gojaErr, ok := err.(*goja.Exception); ok {
+			return fmt.Errorf("运行脚本失败，失败原因：%s", gojaErr.Error())
 		}
 	}
 	return nil
@@ -234,11 +239,10 @@ func (c *Core) run(path string, vm *js.Runtime) error {
 // RunString
 // 运行脚本 字符串
 func (c *Core) RunString(src string) error {
-	vm := c.GetRts()
-	c.LoadModule(vm)
-	_, err := vm.RunString(src)
-	if jsErr, ok := err.(*js.Exception); ok {
-		return fmt.Errorf("运行脚本失败，失败原因：%s", jsErr.Error())
+	c.loadModule()
+	_, err := c.vm.RunString(src)
+	if gojaErr, ok := err.(*goja.Exception); ok {
+		return fmt.Errorf("运行脚本失败，失败原因：%s", gojaErr.Error())
 	}
 	return nil
 }
@@ -253,27 +257,27 @@ func (c *Core) SetGlobalProperty(key string, value any) {
 	c.pkg[GoPlugins][key] = value
 }
 
-func (c *Core) loadVariable(vm *js.Runtime) {
+func (c *Core) loadVariable() {
 	// 添加锁
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
 	// 加载其他模块
 	for name, mod := range c.pkg {
-		jsMod := vm.NewObject()
+		gojaMod := c.vm.NewObject()
 		for k, v := range mod {
-			jsMod.Set(k, v)
+			gojaMod.Set(k, v)
 		}
-		vm.Set(name, jsMod)
+		c.vm.Set(name, gojaMod)
 	}
 }
 
 // registerModule
-// 外部注册模块到js
+// 外部注册模块到goja
 func (c *Core) registerModule() {
 	for Name, moduleFn := range c.modules {
-		require.RegisterNativeModule(Name, func(runtime *js.Runtime, module *js.Object) {
-			m := module.Get("exports").(*js.Object)
+		require.RegisterNativeModule(Name, func(runtime *goja.Runtime, module *goja.Object) {
+			m := module.Get("exports").(*goja.Object)
 			moduleFn(runtime, m)
 		})
 	}

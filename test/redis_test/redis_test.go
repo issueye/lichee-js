@@ -8,17 +8,29 @@ import (
 )
 
 func Test_Redis(t *testing.T) {
-	rdb := redis.NewClient(&redis.Options{
-		Addr: "127.0.0.1:6379",
-	})
 
-	licheejs.RegisterRedis("db/redis", rdb)
 	c := licheejs.NewCore()
 
-	t.Run("redis_js", func(t *testing.T) {
-		err := c.Run("redis_test", "redis_test.js")
+	t.Run("redis_mod", func(t *testing.T) {
+		err := c.Run("redis_mod", "redis_mod.js")
 		if err != nil {
 			t.Errorf("运行脚本失败，失败原因：%s", err.Error())
 		}
 	})
+
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     "49.235.124.25:6379",
+		Password: "123456",
+		DB:       0,
+	})
+
+	licheejs.RegisterRedis(c.GetRts(), "licheeRedis", rdb)
+
+	t.Run("redis_native", func(t *testing.T) {
+		err := c.Run("redis_native", "redis_native.js")
+		if err != nil {
+			t.Errorf("运行脚本失败，失败原因：%s", err.Error())
+		}
+	})
+
 }
