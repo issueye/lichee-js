@@ -10,6 +10,7 @@ import (
 func Test_Redis(t *testing.T) {
 
 	c := licheejs.NewCore()
+	c.SetLogOutMode(licheejs.LOM_DEBUG)
 
 	t.Run("redis_mod", func(t *testing.T) {
 		err := c.Run("redis_mod", "redis_mod.js")

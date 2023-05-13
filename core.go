@@ -55,6 +55,10 @@ type Core struct {
 	logPath string
 	// vm 虚拟机
 	vm *goja.Runtime
+	// 日志输出模式
+	// debug 输出到控制台和输出到日志文件
+	// release 只输出到日志文件
+	logMode LogOutMode
 }
 
 type OptFunc = func(*Core)
@@ -70,6 +74,10 @@ func NewCore(opts ...OptFunc) *Core {
 	c.pkg[GoPlugins] = make(map[string]any)
 	c.modules = make(map[string]func(vm *goja.Runtime, module *goja.Object))
 	c.proMap = make(map[string]*goja.Program)
+	// 日志输出模式
+	// debug 输出到控制台和输出到日志文件
+	// release 只输出到日志文件
+	c.logMode = LOM_RELEASE
 	// 配置
 	for _, opt := range opts {
 		opt(c)
@@ -109,6 +117,14 @@ func (c *Core) setupGojaRuntime(logger *zap.Logger) error {
 	return nil
 }
 
+// SetLogOutMode
+// 日志输出模式
+// debug 输出到控制台和输出到日志文件
+// release 只输出到日志文件
+func (c *Core) SetLogOutMode(mod LogOutMode) {
+	c.logMode = mod
+}
+
 func (c *Core) loadModule() {
 	// 添加 导入方法 require
 	registry := require.NewRegistry(
@@ -125,7 +141,7 @@ func (c *Core) loadModule() {
 	log, ok := LogMap[c.name]
 	if !ok {
 		path := filepath.Join(c.logPath, fmt.Sprintf("%s.log", c.name))
-		l, close, err := newZap(path)
+		l, close, err := newZap(path, c.logMode)
 
 		if err != nil {
 			c.Errorf("加载日志失败，失败原因：%s", err.Error())
@@ -213,7 +229,7 @@ func (c *Core) run(path string, vm *goja.Runtime) error {
 		c.Errorf("读取文件失败，失败原因：%s", err.Error())
 	} else {
 		// 编译文件
-		pro, err := goja.Compile(fmt.Sprintf("script_%s", c.name), string(src), false)
+		pro, err := goja.Compile(c.name, string(src), false)
 		if err != nil {
 			c.Errorf("编译代码失败，失败原因：%s", err.Error())
 		} else {
@@ -233,6 +249,7 @@ func (c *Core) run(path string, vm *goja.Runtime) error {
 			return fmt.Errorf("运行脚本失败，失败原因：%s", gojaErr.Error())
 		}
 	}
+
 	return nil
 }
 
