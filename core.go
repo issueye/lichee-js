@@ -215,6 +215,8 @@ func (c *Core) RunVM(path string, vm *goja.Runtime) error {
 }
 
 func (c *Core) run(path string, vm *goja.Runtime) error {
+	// todo 提供两种运行模式, 第一种：只加载一次，后续再 run 的时候不加载文件，而是直接运行；第二种：每次运行时都需要去重新加载脚本并且编译，然后在新的虚拟机上运行
+
 	c.loadModule()
 	var tmpPath string
 	if c.globalPath != "" {
