@@ -46,6 +46,8 @@ type Core struct {
 	// pro *goja.Program
 	// 对应文件的编译对象
 	proMap map[string]*goja.Program
+	// 日志对象
+	logger *zap.Logger
 	// 锁
 	lock *sync.Mutex
 	// Name
@@ -99,6 +101,15 @@ func NewCore(opts ...OptFunc) *Core {
 	c.loadScript("dayjs", "dayjs.min.js", globalDayjsProg)
 
 	return c
+}
+
+// OptionLog
+// 配置日志
+func OptionLog(path string, log *zap.Logger) OptFunc {
+	return func(core *Core) {
+		core.logger = log
+		core.logPath = path
+	}
 }
 
 func (c *Core) setupGojaRuntime(logger *zap.Logger) error {
