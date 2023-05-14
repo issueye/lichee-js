@@ -6,7 +6,7 @@ import (
 	redis "github.com/redis/go-redis/v9"
 )
 
-// todo 添加 redis 的其他api
+// TODO 添加 redis 的其他api
 
 // RegisterRedis
 // 由外部传入redis 客户端

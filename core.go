@@ -2,6 +2,7 @@ package licheejs
 
 import (
 	"embed"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -59,6 +60,10 @@ type Core struct {
 	// debug 输出到控制台和输出到日志文件
 	// release 只输出到日志文件
 	logMode LogOutMode
+	// 注册
+	registry *require.Registry
+
+	loop *EventLoop
 }
 
 type OptFunc = func(*Core)
@@ -82,6 +87,18 @@ func NewCore(opts ...OptFunc) *Core {
 	for _, opt := range opts {
 		opt(c)
 	}
+
+	// 添加 导入方法 require
+	c.registry = require.NewRegistry(
+		// 全局加载路径
+		require.WithGlobalFolders(c.globalPath),
+	)
+	c.registry.Enable(c.vm)
+
+	c.loop = NewEventLoop(c.vm)
+	// 加载goja模块
+	c.loadScript("utils-arr2map", "convert.js", globalConvertProg)
+	c.loadScript("dayjs", "dayjs.min.js", globalDayjsProg)
 
 	return c
 }
@@ -110,10 +127,6 @@ func (c *Core) setupGojaRuntime(logger *zap.Logger) error {
 		return err
 	}
 
-	// 加载goja模块
-	c.loadScript("utils-arr2map", "convert.js", globalConvertProg)
-	c.loadScript("dayjs", "dayjs.min.js", globalDayjsProg)
-
 	return nil
 }
 
@@ -126,13 +139,6 @@ func (c *Core) SetLogOutMode(mod LogOutMode) {
 }
 
 func (c *Core) loadModule() {
-	// 添加 导入方法 require
-	registry := require.NewRegistry(
-		// 全局加载路径
-		require.WithGlobalFolders(c.globalPath),
-	)
-	registry.Enable(c.vm)
-
 	// 添加 日志方法 console
 	if c.name == "" {
 		c.name = "lichee-test"
@@ -215,8 +221,6 @@ func (c *Core) RunVM(path string, vm *goja.Runtime) error {
 }
 
 func (c *Core) run(path string, vm *goja.Runtime) error {
-	// todo 提供两种运行模式, 第一种：只加载一次，后续再 run 的时候不加载文件，而是直接运行；第二种：每次运行时都需要去重新加载脚本并且编译，然后在新的虚拟机上运行
-
 	c.loadModule()
 	var tmpPath string
 	if c.globalPath != "" {
@@ -239,20 +243,41 @@ func (c *Core) run(path string, vm *goja.Runtime) error {
 		}
 	}
 
-	runVm := c.vm
-	if vm != nil {
-		runVm = vm
-	}
-
 	// 只有存在编译对象时，才运行
 	if c.proMap[path] != nil {
-		_, err := runVm.RunProgram(c.proMap[path])
-		if gojaErr, ok := err.(*goja.Exception); ok {
-			return fmt.Errorf("运行脚本失败，失败原因：%s", gojaErr.Error())
+		var err error
+		if vm != nil {
+			loop := NewEventLoop(vm)
+
+			loop.Run(func(r *goja.Runtime) {
+				_, err := vm.RunProgram(c.proMap[path])
+				if gojaErr, ok := err.(*goja.Exception); ok {
+					err = errors.New(gojaErr.String())
+					return
+				}
+			})
+		} else {
+			c.loop.Run(func(vm *goja.Runtime) {
+				_, err := vm.RunProgram(c.proMap[path])
+				if gojaErr, ok := err.(*goja.Exception); ok {
+					err = errors.New(gojaErr.String())
+					return
+				}
+			})
+		}
+
+		if err != nil {
+			return err
 		}
 	}
-
 	return nil
+}
+
+// ExportFunc
+// 导出JS方法
+func (c *Core) ExportFunc(name string, fn any) error {
+	vm := c.GetRts()
+	return vm.ExportTo(vm.Get(name), fn)
 }
 
 // RunString
@@ -269,18 +294,10 @@ func (c *Core) RunString(src string) error {
 // SetGlobalProperty
 // 写入数据到全局对象中
 func (c *Core) SetGlobalProperty(key string, value any) {
-	// 添加锁
-	c.lock.Lock()
-	defer c.lock.Unlock()
-
 	c.pkg[GoPlugins][key] = value
 }
 
 func (c *Core) loadVariable() {
-	// 添加锁
-	c.lock.Lock()
-	defer c.lock.Unlock()
-
 	// 加载其他模块
 	for name, mod := range c.pkg {
 		gojaMod := c.vm.NewObject()
@@ -305,10 +322,6 @@ func (c *Core) registerModule() {
 // SetProperty
 // 向模块写入变量或者写入方法
 func (c *Core) SetProperty(moduleName, key string, value any) {
-	// 添加锁
-	c.lock.Lock()
-	defer c.lock.Unlock()
-
 	mod, ok := c.pkg[moduleName]
 	if !ok {
 		c.pkg[moduleName] = make(map[string]any)

@@ -10,7 +10,6 @@ import (
 )
 
 func NewURL(runtime *goja.Runtime, u *url.URL) *goja.Object {
-	// TODO
 	o := runtime.NewObject()
 	o.Set("getForceQuery", func(call goja.FunctionCall) goja.Value {
 		return runtime.ToValue(u.ForceQuery)
