@@ -245,29 +245,24 @@ func (c *Core) run(path string, vm *goja.Runtime) error {
 
 	// 只有存在编译对象时，才运行
 	if c.proMap[path] != nil {
-		var err error
+		var loop *EventLoop
 		if vm != nil {
-			loop := NewEventLoop(vm)
-
-			loop.Run(func(r *goja.Runtime) {
-				_, err := vm.RunProgram(c.proMap[path])
-				if gojaErr, ok := err.(*goja.Exception); ok {
-					err = errors.New(gojaErr.String())
-					return
-				}
-			})
+			loop = NewEventLoop(vm)
 		} else {
-			c.loop.Run(func(vm *goja.Runtime) {
-				_, err := vm.RunProgram(c.proMap[path])
-				if gojaErr, ok := err.(*goja.Exception); ok {
-					err = errors.New(gojaErr.String())
-					return
-				}
-			})
+			loop = c.loop
 		}
 
-		if err != nil {
-			return err
+		var exception error
+		loop.Run(func(r *goja.Runtime) {
+			_, err := vm.RunProgram(c.proMap[path])
+			if gojaErr, ok := err.(*goja.Exception); ok {
+				exception = errors.New(gojaErr.String())
+				return
+			}
+		})
+
+		if exception != nil {
+			return exception
 		}
 	}
 	return nil
