@@ -1,14 +1,14 @@
 package db
 
 import (
-	js "github.com/dop251/goja"
-	"github.com/issueye/lichee/pkg/plugins/core/lib"
+	"github.com/dop251/goja"
+	"github.com/issueye/lichee-js/lib"
 	"gorm.io/gorm"
 )
 
-func NewTx(runtime *js.Runtime, tx *gorm.DB) js.Value {
+func NewTx(runtime *goja.Runtime, tx *gorm.DB) goja.Value {
 	o := runtime.NewObject()
-	o.Set("commit", func(call js.FunctionCall) js.Value {
+	o.Set("commit", func(call goja.FunctionCall) goja.Value {
 		mit := tx.Commit()
 		if mit.Error != nil {
 			return lib.MakeErrorValue(runtime, mit.Error)
@@ -16,7 +16,7 @@ func NewTx(runtime *js.Runtime, tx *gorm.DB) js.Value {
 		return nil
 	})
 
-	o.Set("rollback", func(call js.FunctionCall) js.Value {
+	o.Set("rollback", func(call goja.FunctionCall) goja.Value {
 		roll := tx.Rollback()
 		if roll.Error != nil {
 			return lib.MakeErrorValue(runtime, roll.Error)
@@ -24,7 +24,7 @@ func NewTx(runtime *js.Runtime, tx *gorm.DB) js.Value {
 		return nil
 	})
 
-	o.Set("exec", func(call js.FunctionCall) js.Value {
+	o.Set("exec", func(call goja.FunctionCall) goja.Value {
 		sqlStr := call.Argument(0).String()
 		result := tx.Exec(sqlStr)
 		if result.Error != nil {
@@ -37,7 +37,7 @@ func NewTx(runtime *js.Runtime, tx *gorm.DB) js.Value {
 		}))
 	})
 
-	o.Set("query", func(call js.FunctionCall) js.Value {
+	o.Set("query", func(call goja.FunctionCall) goja.Value {
 		sqlStr := call.Argument(0).String()
 		// 查询数据
 		result := tx.Raw(sqlStr)
