@@ -31,6 +31,11 @@ type ZapLogger struct {
 	Close func()
 }
 
+type Code struct {
+	Path    string
+	Program *goja.Program
+}
+
 type ModuleFunc = func(vm *goja.Runtime, module *goja.Object)
 
 // Core
@@ -45,13 +50,11 @@ type Core struct {
 	// 编译之后的对象
 	// pro *goja.Program
 	// 对应文件的编译对象
-	proMap map[string]*goja.Program
+	proMap map[string]*Code
 	// 日志对象
 	logger *zap.Logger
 	// 锁
 	lock *sync.Mutex
-	// Name
-	name string
 	// 日志存放路径
 	logPath string
 	// vm 虚拟机
@@ -78,7 +81,7 @@ func NewCore(opts ...OptFunc) *Core {
 	// 初始化全局
 	c.pkg[GoPlugins] = make(map[string]any)
 	c.modules = make(map[string]func(vm *goja.Runtime, module *goja.Object))
-	c.proMap = make(map[string]*goja.Program)
+	c.proMap = make(map[string]*Code)
 	// 日志输出模式
 	// debug 输出到控制台和输出到日志文件
 	// release 只输出到日志文件
@@ -97,8 +100,14 @@ func NewCore(opts ...OptFunc) *Core {
 
 	c.loop = NewEventLoop(c.vm)
 	// 加载goja模块
-	c.loadScript("utils-arr2map", "convert.js", globalConvertProg)
-	c.loadScript("dayjs", "dayjs.min.js", globalDayjsProg)
+	err := c.loadScript("utils-arr2map", "convert.js", globalConvertProg)
+	if err != nil {
+		c.Errorf("加载模块【utils-arr2map】失败，失败原因：%s", err.Error())
+	}
+	err = c.loadScript("dayjs", "dayjs.min.js", globalDayjsProg)
+	if err != nil {
+		c.Errorf("加载模块【dayjs】失败，失败原因：%s", err.Error())
+	}
 
 	return c
 }
@@ -144,15 +153,15 @@ func (c *Core) SetLogOutMode(mod LogOutMode) {
 	c.logMode = mod
 }
 
-func (c *Core) loadModule() {
+func (c *Core) loadModule(name string) {
 	// 添加 日志方法 console
-	if c.name == "" {
-		c.name = "lichee-test"
+	if name == "" {
+		name = "lichee-test"
 	}
 
-	log, ok := LogMap[c.name]
+	log, ok := LogMap[name]
 	if !ok {
-		path := filepath.Join(c.logPath, fmt.Sprintf("%s.log", c.name))
+		path := filepath.Join(c.logPath, fmt.Sprintf("%s.log", name))
 		l, close, err := newZap(path, c.logMode)
 
 		if err != nil {
@@ -164,15 +173,13 @@ func (c *Core) loadModule() {
 			Close: close,
 		}
 
-		LogMap[c.name] = log
+		LogMap[name] = log
 	}
 
 	// 设置运行时
 	c.setupGojaRuntime(log.log)
-
 	// 加载全局对象
 	c.loadVariable()
-
 	// 加载外部模块
 	c.registerModule()
 }
@@ -193,41 +200,28 @@ func (c *Core) SetGlobalPath(path string) {
 
 // loadScript
 // 加载文件中的goja脚本
-func (c *Core) loadScript(name string, gojaName string, p *goja.Program) {
+func (c *Core) loadScript(name string, gojaName string, p *goja.Program) error {
 	if p == nil {
 		path := fmt.Sprintf("js/%s", gojaName)
 		src, err := Script.ReadFile(path)
 		if err != nil {
-			c.Errorf("读取文件失败，失败原因：%s", err.Error())
-			return
+			return err
 		}
+
 		p, err = goja.Compile(name, string(src), false)
 		if err != nil {
-			return
+			return err
 		}
 	}
 	// 运行脚本
 	_, err := c.vm.RunProgram(p)
-	if err != nil {
-		c.Errorf("运行脚本[%s]失败，失败原因：%s", name, err.Error())
-	}
+	return err
 }
 
-// Run
-// 运行脚本 文件
-func (c *Core) Run(name, path string) error {
-	c.name = name
-	return c.run(path, c.vm)
-}
+// Compile
+// 编译代码
+func (c *Core) Compile(name string, path string) error {
 
-// RunVM
-// 运行脚本 文件
-func (c *Core) RunVM(path string, vm *goja.Runtime) error {
-	return c.run(path, vm)
-}
-
-func (c *Core) run(path string, vm *goja.Runtime) error {
-	c.loadModule()
 	var tmpPath string
 	if c.globalPath != "" {
 		tmpPath = filepath.Join(c.globalPath, path)
@@ -238,19 +232,37 @@ func (c *Core) run(path string, vm *goja.Runtime) error {
 	// 读取文件
 	src, err := os.ReadFile(tmpPath)
 	if err != nil {
-		c.Errorf("读取文件失败，失败原因：%s", err.Error())
-	} else {
-		// 编译文件
-		pro, err := goja.Compile(c.name, string(src), false)
-		if err != nil {
-			c.Errorf("编译代码失败，失败原因：%s", err.Error())
-		} else {
-			c.proMap[path] = pro
-		}
+		return err
 	}
 
+	// 编译
+	c.compile(name, string(src), path)
+	return nil
+}
+
+// Compile
+// 编译代码
+func (c *Core) compile(name string, code string, path string) error {
+	c.loadModule(name)
+
+	// 编译文件
+	pro, err := goja.Compile(name, code, false)
+	if err != nil {
+		return err
+	}
+
+	c.proMap[name] = &Code{
+		Path:    path,
+		Program: pro,
+	}
+
+	return nil
+}
+
+// RunOnce()
+func (c *Core) RunOnce(name string, vm *goja.Runtime) error {
 	// 只有存在编译对象时，才运行
-	if c.proMap[path] != nil {
+	if c.proMap[name] != nil {
 		var loop *EventLoop
 		if vm != nil {
 			loop = NewEventLoop(vm)
@@ -260,7 +272,7 @@ func (c *Core) run(path string, vm *goja.Runtime) error {
 
 		var exception error
 		loop.Run(func(r *goja.Runtime) {
-			_, err := vm.RunProgram(c.proMap[path])
+			_, err := vm.RunProgram(c.proMap[name].Program)
 			if gojaErr, ok := err.(*goja.Exception); ok {
 				exception = errors.New(gojaErr.String())
 				return
@@ -271,7 +283,57 @@ func (c *Core) run(path string, vm *goja.Runtime) error {
 			return exception
 		}
 	}
+
 	return nil
+}
+
+// CallMain
+func (c *Core) CallMain(name string, path string) {
+	// 编译
+	err := c.Compile(name, path)
+	if err != nil {
+		c.Errorf("编译【%s】失败，失败原因：%s", name, err.Error())
+		return
+	}
+
+	// 运行
+	err = c.RunOnce(name, nil)
+	if err != nil {
+		c.Errorf("运行【%s】失败，失败原因：%s", name, err.Error())
+		return
+	}
+
+	// 调用 main
+	var main func()
+	err = c.ExportFunc("main", &main)
+	if err != nil {
+		c.Errorf("【main】导出失败，失败原因：%s", err.Error())
+		return
+	}
+
+	// 运行main方法
+	main()
+}
+
+// Run
+// 运行脚本 文件
+func (c *Core) Run(name, path string) error {
+	return c.run(name, path, c.vm)
+}
+
+// RunVM
+// 运行脚本 文件
+func (c *Core) RunVM(name string, path string, vm *goja.Runtime) error {
+	return c.run(name, path, vm)
+}
+
+func (c *Core) run(name string, path string, vm *goja.Runtime) error {
+	err := c.Compile(name, path)
+	if err != nil {
+		return err
+	}
+
+	return c.RunOnce(name, vm)
 }
 
 // ExportFunc
@@ -283,13 +345,13 @@ func (c *Core) ExportFunc(name string, fn any) error {
 
 // RunString
 // 运行脚本 字符串
-func (c *Core) RunString(src string) error {
-	c.loadModule()
-	_, err := c.vm.RunString(src)
-	if gojaErr, ok := err.(*goja.Exception); ok {
-		return fmt.Errorf("运行脚本失败，失败原因：%s", gojaErr.Error())
+func (c *Core) RunString(name string, src string) error {
+	err := c.compile(name, src, "")
+	if err != nil {
+		return err
 	}
-	return nil
+
+	return c.RunOnce(name, nil)
 }
 
 // SetGlobalProperty

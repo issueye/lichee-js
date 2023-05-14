@@ -14,7 +14,7 @@ func Test_path(t *testing.T) {
 		let a = path.abs('/home/local')
 		console.log(a)
 		`
-		err := c.RunString(src)
+		err := c.RunString("filepath-abs", src)
 		if err != nil {
 			t.Errorf("abs err :%s", err.Error())
 		}
@@ -26,7 +26,7 @@ func Test_path(t *testing.T) {
 		let a = path.join('/home/local', 'test', 'test001')
 		console.log(a)
 		`
-		err := c.RunString(src)
+		err := c.RunString("filepath-join", src)
 		if err != nil {
 			t.Errorf("abs err :%s", err.Error())
 		}
@@ -38,7 +38,7 @@ func Test_path(t *testing.T) {
 		let a = path.ext('/home/local/code.go')
 		console.log(a)
 		`
-		err := c.RunString(src)
+		err := c.RunString("filepath-ext", src)
 		if err != nil {
 			t.Errorf("abs err :%s", err.Error())
 		}
