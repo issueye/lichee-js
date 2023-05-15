@@ -79,11 +79,6 @@ func NewCmd(rt *js.Runtime, cmd *exec.Cmd) *js.Object {
 		return nil
 	})
 
-	// cmd.ExtraFiles
-	// o.Set("extraFiles", func(call js.FunctionCall) js.Value {
-	// 	cmd.ExtraFiles
-	// })
-
 	// cmd.Process
 	o.Set("process", func(call js.FunctionCall) js.Value {
 		return NewProcess(rt, cmd.Process)
@@ -265,11 +260,6 @@ func NewProcessState(rt *js.Runtime, ps *os.ProcessState) js.Value {
 	o.Set("sysUsage", func() js.Value {
 		return MakeReturnValue(rt, ps.SysUsage())
 	})
-
-	// ps.SystemTime()
-	// o.Set("systemTime", func() js.Value {
-	// return MakeReturnValue(rt, ps.SystemTime())
-	// })
 
 	return o
 }
