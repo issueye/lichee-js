@@ -65,8 +65,10 @@ type Core struct {
 	logMode LogOutMode
 	// 注册
 	registry *require.Registry
-
+	// 事件循环
 	loop *EventLoop
+	// 输出回调
+	ConsoleCallBack ConsoleCallBack
 }
 
 type OptFunc = func(*Core)
@@ -123,7 +125,7 @@ func OptionLog(path string, log *zap.Logger) OptFunc {
 
 func (c *Core) setupGojaRuntime(logger *zap.Logger) error {
 	// 输出日志
-	console := newConsole(logger)
+	console := newConsole(logger, c.ConsoleCallBack)
 	o := c.vm.NewObject()
 	o.Set("log", console.Log)
 	o.Set("debug", console.Debug)

@@ -2,6 +2,7 @@ package licheejs
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"strings"
 
@@ -10,8 +11,11 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+type ConsoleCallBack = func(args ...any)
+
 type console struct {
-	logger *zap.Logger
+	logger   *zap.Logger
+	CallBack ConsoleCallBack
 }
 
 type LogOutMode int
@@ -68,8 +72,10 @@ func newZap(path string, mod LogOutMode) (*zap.Logger, func(), error) {
 	return log, close, nil
 }
 
-func newConsole(log *zap.Logger) *console {
-	return &console{logger: log}
+func newConsole(log *zap.Logger, cb ConsoleCallBack) *console {
+	c := &console{logger: log}
+	c.CallBack = cb
+	return c
 }
 
 func (c console) log(level zapcore.Level, args ...goja.Value) {
@@ -82,15 +88,34 @@ func (c console) log(level zapcore.Level, args ...goja.Value) {
 	}
 	msg := strs.String()
 
+	flag := ""
+
 	switch level { //nolint:exhaustive
 	case zapcore.DebugLevel:
-		c.logger.Debug(msg)
+		{
+			c.logger.Debug(msg)
+			flag = "[debug]"
+		}
 	case zapcore.InfoLevel:
-		c.logger.Info(msg)
+		{
+			c.logger.Info(msg)
+			flag = "[info]"
+		}
 	case zapcore.WarnLevel:
-		c.logger.Warn(msg)
+		{
+			c.logger.Warn(msg)
+			flag = "[warn]"
+		}
 	case zapcore.ErrorLevel:
-		c.logger.Error(msg)
+		{
+			c.logger.Error(msg)
+			flag = "[error]"
+		}
+	}
+
+	// 写入回调
+	if c.CallBack != nil {
+		c.CallBack(fmt.Sprintf("%s %s", flag, msg))
 	}
 }
 
