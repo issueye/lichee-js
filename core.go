@@ -101,15 +101,6 @@ func NewCore(opts ...OptFunc) *Core {
 	c.registry.Enable(c.vm)
 
 	c.loop = NewEventLoop(c.vm)
-	// 加载goja模块
-	err := c.loadScript("utils-arr2map", "convert.js", globalConvertProg)
-	if err != nil {
-		c.Errorf("加载模块【utils-arr2map】失败，失败原因：%s", err.Error())
-	}
-	err = c.loadScript("dayjs", "dayjs.min.js", globalDayjsProg)
-	if err != nil {
-		c.Errorf("加载模块【dayjs】失败，失败原因：%s", err.Error())
-	}
 
 	return c
 }
@@ -200,26 +191,6 @@ func (c *Core) SetGlobalPath(path string) {
 	c.globalPath = path
 }
 
-// loadScript
-// 加载文件中的goja脚本
-func (c *Core) loadScript(name string, gojaName string, p *goja.Program) error {
-	if p == nil {
-		path := fmt.Sprintf("js/%s", gojaName)
-		src, err := Script.ReadFile(path)
-		if err != nil {
-			return err
-		}
-
-		p, err = goja.Compile(name, string(src), false)
-		if err != nil {
-			return err
-		}
-	}
-	// 运行脚本
-	_, err := c.vm.RunProgram(p)
-	return err
-}
-
 // Compile
 // 编译代码
 func (c *Core) Compile(name string, path string) error {
@@ -274,7 +245,7 @@ func (c *Core) RunOnce(name string, vm *goja.Runtime) error {
 
 		var exception error
 		loop.Run(func(r *goja.Runtime) {
-			_, err := vm.RunProgram(c.proMap[name].Program)
+			_, err := r.RunProgram(c.proMap[name].Program)
 			if gojaErr, ok := err.(*goja.Exception); ok {
 				exception = errors.New(gojaErr.String())
 				return
