@@ -243,7 +243,7 @@ func (c *Core) RunOnce(name string, vm *goja.Runtime) error {
 
 		var exception error
 		loop.Run(func(r *goja.Runtime) {
-			_, err := vm.RunProgram(c.proMap[name].Program)
+			_, err := r.RunProgram(c.proMap[name].Program)
 			if gojaErr, ok := err.(*goja.Exception); ok {
 				exception = errors.New(gojaErr.String())
 				return
