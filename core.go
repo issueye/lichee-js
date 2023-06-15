@@ -202,7 +202,7 @@ func (c *Core) SetGlobalPath(path string) {
 // 加载文件中的goja脚本
 func (c *Core) loadScript(name string, gojaName string, p *goja.Program) error {
 	if p == nil {
-		path := fmt.Sprintf("js/%s", gojaName)
+		path := filepath.Join("js", gojaName)
 		src, err := Script.ReadFile(path)
 		if err != nil {
 			return err
