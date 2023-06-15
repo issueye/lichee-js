@@ -109,7 +109,7 @@ func NewCmd(rt *js.Runtime, cmd *exec.Cmd) *js.Object {
 	})
 
 	// cmd.Output()
-	o.Set("combinedOutput", func() js.Value {
+	o.Set("output", func() js.Value {
 		b, err := cmd.Output()
 		if err != nil {
 			MakeErrorValue(rt, err)
@@ -119,7 +119,7 @@ func NewCmd(rt *js.Runtime, cmd *exec.Cmd) *js.Object {
 	})
 
 	// cmd.Run()
-	o.Set("combinedOutput", func() js.Value {
+	o.Set("run", func() js.Value {
 		err := cmd.Run()
 		if err != nil {
 			MakeErrorValue(rt, err)
@@ -129,7 +129,7 @@ func NewCmd(rt *js.Runtime, cmd *exec.Cmd) *js.Object {
 	})
 
 	// cmd.Start()
-	o.Set("combinedOutput", func() js.Value {
+	o.Set("start", func() js.Value {
 		err := cmd.Start()
 		if err != nil {
 			MakeErrorValue(rt, err)
@@ -139,7 +139,7 @@ func NewCmd(rt *js.Runtime, cmd *exec.Cmd) *js.Object {
 	})
 
 	// cmd.StderrPipe()
-	o.Set("combinedOutput", func() js.Value {
+	o.Set("stderrPipe", func() js.Value {
 		closer, err := cmd.StderrPipe()
 		if err != nil {
 			MakeErrorValue(rt, err)
@@ -149,23 +149,13 @@ func NewCmd(rt *js.Runtime, cmd *exec.Cmd) *js.Object {
 	})
 
 	// cmd.StdinPipe()
-	o.Set("combinedOutput", func() js.Value {
+	o.Set("stdinPipe", func() js.Value {
 		closer, err := cmd.StdinPipe()
 		if err != nil {
 			MakeErrorValue(rt, err)
 		}
 
 		return NewWriteCloser(rt, closer)
-	})
-
-	// cmd.StdoutPipe()
-	o.Set("StdoutPipe", func() js.Value {
-		closer, err := cmd.StderrPipe()
-		if err != nil {
-			MakeErrorValue(rt, err)
-		}
-
-		return NewReadCloser(rt, closer)
 	})
 
 	return o
