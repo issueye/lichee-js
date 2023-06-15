@@ -1,7 +1,6 @@
 package licheejs
 
 import (
-	"embed"
 	"errors"
 	"fmt"
 	"os"
@@ -13,17 +12,12 @@ import (
 	"go.uber.org/zap"
 )
 
-//go:embed js/*
-var Script embed.FS
-
 const (
 	GoPlugins = "lichee"
 )
 
 var (
-	globalConvertProg *goja.Program                 // convert 转换代码的对应编译对象
-	globalDayjsProg   *goja.Program                 // dayjs 转换代码的对应编译对象
-	LogMap            = make(map[string]*ZapLogger) // 日志对象
+	LogMap = make(map[string]*ZapLogger) // 日志对象
 )
 
 type ZapLogger struct {
