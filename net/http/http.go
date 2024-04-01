@@ -1,7 +1,7 @@
 package http
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -40,7 +40,7 @@ func InitHttp() {
 				panic(runtime.NewGoError(err))
 			}
 			defer res.Body.Close()
-			datas, err := ioutil.ReadAll(res.Body)
+			datas, err := io.ReadAll(res.Body)
 			if err != nil {
 				panic(runtime.NewGoError(err))
 			}
